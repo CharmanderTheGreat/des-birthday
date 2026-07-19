@@ -43,6 +43,7 @@
     padding:24px;
     text-align:center;
     overflow-y:auto;
+    z-index:1;
   }
   .screen.active{display:flex;}
   h1,h2,h3{font-family:'Fredoka',sans-serif;font-weight:600;}
@@ -283,7 +284,7 @@
   #musicBtn{
     position:fixed;
     top:14px;left:14px;
-    z-index:50;
+    z-index:90;
     width:44px;height:44px;
     border-radius:50%;
     background:var(--white);
@@ -297,19 +298,39 @@
   small.hint{display:block;margin-top:14px;font-size:12px;color:#c2a9b4;}
   .volume-hint{
     position:fixed;
-    bottom:14px;
-    left:50%;
-    transform:translateX(-50%);
-    font-size:11px;
-    color:#b98da0;
-    background:rgba(255,255,255,.85);
-    padding:6px 14px;
-    border-radius:999px;
-    z-index:40;
-    white-space:nowrap;
-    box-shadow:0 2px 8px rgba(255,124,163,.15);
+    top:70px;
+    left:14px;
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink);
+    background:var(--white);
+    padding:10px 16px;
+    border-radius:16px;
+    border:2px solid var(--rose);
+    z-index:45;
+    max-width:220px;
+    line-height:1.4;
+    box-shadow:0 6px 16px rgba(255,124,163,.25);
+    pointer-events:none;
+  }
+  .volume-hint::before{
+    content:"";
+    position:absolute;
+    top:-9px;
+    left:20px;
+    width:16px;
+    height:16px;
+    background:var(--white);
+    border-left:2px solid var(--rose);
+    border-top:2px solid var(--rose);
+    transform:rotate(45deg);
   }
   .volume-hint.hidden{display:none;}
+  .volume-hint{animation:hintPulse 2s ease-in-out infinite;}
+  @keyframes hintPulse{
+    0%,100%{transform:scale(1);}
+    50%{transform:scale(1.03);}
+  }
 </style>
 </head>
 <body>
@@ -460,6 +481,7 @@ const jarSteps = {
 const totalSteps = 6;
 
 let currentJarPct = 0;
+let currentScreen = 'screen-landing';
 
 function setJarPct(pct){
   currentJarPct = Math.max(0, Math.min(100, pct));
@@ -476,22 +498,25 @@ function openCard(){
 function goTo(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  currentScreen = id;
   const jarWrap = document.getElementById('jarWrap');
-  const volumeHint = document.getElementById('volumeHint');
   if(id === 'screen-landing'){
     jarWrap.classList.add('hidden');
-    volumeHint.classList.add('hidden');
   } else {
     jarWrap.classList.remove('hidden');
     const pct = Math.round((jarSteps[id]||0)/totalSteps*100);
     setJarPct(pct);
-    if(id === 'screen-cake' || musicOn){
-      volumeHint.classList.add('hidden');
-    } else if(hasAudioSource()){
-      volumeHint.classList.remove('hidden');
-    }
   }
+  updateVolumeHint(id);
   window.scrollTo(0,0);
+}
+
+function updateVolumeHint(currentScreenId){
+  const volumeHint = document.getElementById('volumeHint');
+  if(!volumeHint) return;
+  const shouldShow = hasAudioSource() && !musicOn &&
+    currentScreenId !== 'screen-landing' && currentScreenId !== 'screen-cake';
+  volumeHint.classList.toggle('hidden', !shouldShow);
 }
 
 /* ---------------- Music ---------------- */
@@ -512,18 +537,22 @@ function tryPlayMusic(){
   const playPromise = bgMusic.play();
   if(playPromise !== undefined){
     playPromise.then(()=>{
-      musicOn = true;
-      musicBtn.textContent = '🔊';
-      document.getElementById('volumeHint').classList.add('hidden');
+      // Double-check it's actually playing and not muted/volume-0
+      setTimeout(()=>{
+        const actuallyPlaying = !bgMusic.paused && bgMusic.currentTime > 0 && !bgMusic.muted && bgMusic.volume > 0;
+        musicOn = actuallyPlaying;
+        musicBtn.textContent = actuallyPlaying ? '🔊' : '🔈';
+        updateVolumeHint(currentScreen);
+      }, 150);
     }).catch(()=>{
-      // Autoplay blocked by browser — keep icon as tappable/off state
       musicOn = false;
       musicBtn.textContent = '🔈';
+      updateVolumeHint(currentScreen);
     });
   } else {
     musicOn = true;
     musicBtn.textContent = '🔊';
-    document.getElementById('volumeHint').classList.add('hidden');
+    updateVolumeHint(currentScreen);
   }
 }
 
@@ -535,6 +564,7 @@ musicBtn.addEventListener('click', ()=>{
     bgMusic.pause();
     musicOn = false;
     musicBtn.textContent = '🔈';
+    updateVolumeHint(currentScreen);
   } else {
     tryPlayMusic();
   }
