@@ -295,6 +295,21 @@
   }
 
   small.hint{display:block;margin-top:14px;font-size:12px;color:#c2a9b4;}
+  .volume-hint{
+    position:fixed;
+    bottom:14px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:11px;
+    color:#b98da0;
+    background:rgba(255,255,255,.85);
+    padding:6px 14px;
+    border-radius:999px;
+    z-index:40;
+    white-space:nowrap;
+    box-shadow:0 2px 8px rgba(255,124,163,.15);
+  }
+  .volume-hint.hidden{display:none;}
 </style>
 </head>
 <body>
@@ -302,6 +317,7 @@
 <div id="app">
 
   <button id="musicBtn" aria-label="Toggle music">🔈</button>
+  <div class="volume-hint hidden" id="volumeHint">🔊 Make sure to unmute and maximize your volume</div>
   <div id="jarWrap" class="hidden">
     <div class="jar-lid"></div>
     <div class="jar"><div class="jar-fill" id="jarFill"></div></div>
@@ -452,9 +468,7 @@ function setJarPct(pct){
 
 function openCard(){
   if(hasAudioSource() && !musicOn){
-    musicOn = true;
-    bgMusic.play().catch(()=>{});
-    musicBtn.textContent = '🔊';
+    tryPlayMusic();
   }
   goTo('screen-slide-1');
 }
@@ -463,12 +477,19 @@ function goTo(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const jarWrap = document.getElementById('jarWrap');
+  const volumeHint = document.getElementById('volumeHint');
   if(id === 'screen-landing'){
     jarWrap.classList.add('hidden');
+    volumeHint.classList.add('hidden');
   } else {
     jarWrap.classList.remove('hidden');
     const pct = Math.round((jarSteps[id]||0)/totalSteps*100);
     setJarPct(pct);
+    if(id === 'screen-cake' || musicOn){
+      volumeHint.classList.add('hidden');
+    } else if(hasAudioSource()){
+      volumeHint.classList.remove('hidden');
+    }
   }
   window.scrollTo(0,0);
 }
@@ -487,17 +508,35 @@ if(!hasAudioSource()){
   musicBtn.title = 'Wala pang music file, i-add sa audio tag sa code';
 }
 
+function tryPlayMusic(){
+  const playPromise = bgMusic.play();
+  if(playPromise !== undefined){
+    playPromise.then(()=>{
+      musicOn = true;
+      musicBtn.textContent = '🔊';
+      document.getElementById('volumeHint').classList.add('hidden');
+    }).catch(()=>{
+      // Autoplay blocked by browser — keep icon as tappable/off state
+      musicOn = false;
+      musicBtn.textContent = '🔈';
+    });
+  } else {
+    musicOn = true;
+    musicBtn.textContent = '🔊';
+    document.getElementById('volumeHint').classList.add('hidden');
+  }
+}
+
 musicBtn.addEventListener('click', ()=>{
   if(!hasAudioSource()){
     return;
   }
-  musicOn = !musicOn;
   if(musicOn){
-    bgMusic.play().catch(()=>{});
-    musicBtn.textContent = '🔊';
-  } else {
     bgMusic.pause();
+    musicOn = false;
     musicBtn.textContent = '🔈';
+  } else {
+    tryPlayMusic();
   }
 });
 
