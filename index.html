@@ -514,8 +514,11 @@ function goTo(id){
 function updateVolumeHint(currentScreenId){
   const volumeHint = document.getElementById('volumeHint');
   if(!volumeHint) return;
-  const shouldShow = hasAudioSource() && !musicOn &&
-    currentScreenId !== 'screen-landing' && currentScreenId !== 'screen-cake';
+  const alwaysShowScreens = [
+    'screen-slide-1','screen-slide-2','screen-slide-3',
+    'screen-game-intro','screen-game','screen-slide-4','screen-album','screen-cake'
+  ];
+  const shouldShow = hasAudioSource() && !musicOn && alwaysShowScreens.includes(currentScreenId);
   volumeHint.classList.toggle('hidden', !shouldShow);
 }
 
